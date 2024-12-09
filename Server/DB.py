@@ -19,12 +19,12 @@ class Database:
         # Create tables for each section
         self.tables = {
             "system": """
-                UserID INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
+                UserID INTEGER PRIMARY KEY AUTOINCREMENT,
                 Hostname TEXT,
                 OS TEXT,
                 Platform TEXT,
-                PlatformVer TEXT,
-                KernelVer TEXT,
+                PlatformVersion TEXT,
+                KernelVersion TEXT,
                 Architecture TEXT,
                 Uptime TEXT,
                 Boottime DATETIME,
@@ -155,6 +155,49 @@ class Database:
             print("Data:", data)
         self.cursor.execute(query, data)
         self.conn.commit()
+
+    def update(self, selectedTable: str, columns: list, data: list, condition: str, condition_values: list) -> None:
+        """
+            Updates data in the database
+
+            Parameters:
+                - selectedTable (str) - Table to update data in
+                - columns (list) - Columns to update
+                - data (list) - Data to update in the database
+                - condition (str) - Condition for the WHERE clause (e.g., "UserID = ?")
+                - condition_values (list) - Values for the condition placeholders
+
+            Returns:
+                - None       
+        """
+        if len(columns) != len(data):
+            print(f"Columns: {len(columns)} {columns} \n - Data: {len(data)} {data}")
+            raise ValueError("Data cannot fit into columns")
+        if not isinstance(columns, list) or not isinstance(data, list):
+            raise TypeError("Data or columns must be a list!")
+        if not isinstance(condition_values, list):
+            raise TypeError("Condition values must be a list!")
+        
+        columns.append("LoggedTime")
+        data.append("CURRENT_TIMESTAMP")
+        
+        set_clause = ", ".join(f"{col} = ?" for col in columns[:-1])
+        set_clause += f", {columns[-1]} = CURRENT_TIMESTAMP"
+
+        query = f"UPDATE {selectedTable} SET {set_clause} WHERE {condition}"
+        
+        data = [
+            ", ".join(map(str, item)) if isinstance(item, list) else item
+            for item in data[:-1]
+        ] + condition_values
+
+        if self.debug:
+            print("Query:", query)
+            print("Data:", data)
+        
+        self.cursor.execute(query, data)
+        self.conn.commit()
+
 
     def check_userID(self, hostname: str) -> int:
         """
